@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from packages.contracts import Capture, ChangeEvent
+
 
 class ChangeDetectionService(ABC):
     @abstractmethod
@@ -23,3 +25,18 @@ class ObjectDifferenceBaseline(ChangeDetectionService):
             if (first.get("latitude"), first.get("longitude")) != (last.get("latitude"), last.get("longitude")):
                 events.append({"type": "moved", "confidence": min(first["confidence"], last["confidence"]), "geometry": last.get("geometry")})
         return events
+
+
+class SimpleDifferenceProvider:
+    def compare(self, before: Capture, after: Capture) -> list[ChangeEvent]:
+        return []
+
+
+class OpenCDProvider:
+    """Adapter around an injected Open-CD inference runner."""
+
+    def __init__(self, runner):
+        self.runner = runner
+
+    def compare(self, before: Capture, after: Capture) -> list[ChangeEvent]:
+        return [ChangeEvent(site_id=after.site_id, before_capture_id=before.id, after_capture_id=after.id, type=row["type"], confidence=float(row["confidence"]), geometry_geo=row.get("geometry_geo"), metadata={"provider": "open-cd"}) for row in self.runner(before, after)]

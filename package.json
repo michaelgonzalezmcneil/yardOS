@@ -1,0 +1,17 @@
+{
+  "name": "yardos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "check": "node --check src/services/nodeodm.js && node --check src/services/vision.js && node --check scripts/process-test-scan.js && python3 -m compileall -q services/vision",
+    "test": "node --test && PYTHONPATH=services/vision python3 -m unittest discover -s services/vision/tests -v && PYTHONPATH=. python3 -m unittest discover -s test/python -v",
+    "process-test-scan": "node scripts/process-test-scan.js",
+    "web:dev": "npm --workspace apps/web run dev",
+    "web:build": "npm --workspace apps/web run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

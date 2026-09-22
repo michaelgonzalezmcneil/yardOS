@@ -1,0 +1,7 @@
+.venv
+training
+tests
+models/*
+!models/.gitkeep
+**/__pycache__
+*.pyc

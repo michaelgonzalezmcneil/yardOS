@@ -1,0 +1,10 @@
+path: ./services/vision/training/datasets/yardos
+train: images/train
+val: images/val
+names:
+  0: trailer
+  1: shipping_container
+  2: tractor
+  3: chassis
+  4: heavy_equipment
+  5: car

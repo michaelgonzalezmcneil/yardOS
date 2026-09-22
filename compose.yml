@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: yardos
+      POSTGRES_USER: yardos
+      POSTGRES_PASSWORD: yardos
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yardos"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://yardos:yardos@db:5432/yardos}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      DRONE_MODE: ${DRONE_MODE:-simulation}
+      NODEODM_HOST: nodeodm
+      NODEODM_PORT: 3000
+      VISION_SERVICE_URL: http://vision:8000
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+  nodeodm:
+    image: opendronemap/nodeodm:latest
+    profiles: ["photogrammetry"]
+    ports: ["${NODEODM_PORT:-3001}:3000"]
+    volumes: ["./data/nodeodm:/var/www/data"]
+
+  vision:
+    build: ./services/vision
+    profiles: ["vision"]
+    environment:
+      VISION_PROVIDER: ${VISION_PROVIDER:-mock}
+      VISION_MODEL_PATH: ${VISION_MODEL_PATH:-yolo11n.pt}
+      VISION_MODEL_VERSION: ${VISION_MODEL_VERSION:-yardos-mock-v1}
+    ports: ["8001:8000"]
+    volumes:
+      - ./services/vision/models:/app/models
+      - ./data/vision:/app/data
+
+volumes:
+  postgres_data:

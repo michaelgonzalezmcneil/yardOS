@@ -1,0 +1,5 @@
+export type DemoDetection={id:string;class_name:string;confidence:number;longitude:number;latitude:number;status:"stable"|"moved"|"new";timestamp:string;bbox:{x:number;y:number;width:number;height:number}};
+const classes=["car","truck","trailer","shipping_container","construction_equipment","person"];
+export const demoDetections:DemoDetection[]=Array.from({length:128},(_,i)=>{const class_name=classes[i%classes.length];const moved=i%9===0;return{id:`FR-${String(i+1).padStart(4,"0")}`,class_name,confidence:+(.82+(i%16)/100).toFixed(2),longitude:-95.3047+(i%16)*.00061+(moved?.00045:0),latitude:29.7572+Math.floor(i/16)*.00082+(moved?.00025:0),status:i>=122?"new":moved?"moved":"stable",timestamp:"Sep 18, 2026 · 8:42 AM",bbox:{x:80+i*11%1800,y:40+i*17%950,width:["truck","trailer"].includes(class_name)?62:28,height:class_name==="person"?12:24}}});
+export const count=(name:string)=>demoDetections.filter(d=>d.class_name===name).length;
+export const labels:Record<string,string>={car:"Car",truck:"Truck",trailer:"Trailer",shipping_container:"Container",construction_equipment:"Equipment",person:"Person"};

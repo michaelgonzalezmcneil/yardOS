@@ -1,0 +1,8 @@
+{
+  "site": {"id":"houston-yard-1","name":"Houston Distribution Yard","latitude":29.7605,"longitude":-95.3001,"bounds":[-95.3054,29.7568,-95.2948,29.7642]},
+  "captures": [
+    {"id":"capture-monday","label":"Monday","captured_at":"2026-09-14T08:30:00Z","status":"complete"},
+    {"id":"capture-friday","label":"Friday","captured_at":"2026-09-18T08:42:00Z","status":"complete"}
+  ],
+  "generation": {"objects_per_capture":128,"seed":42,"classes":["car","truck","trailer","shipping_container","construction_equipment","person"]}
+}

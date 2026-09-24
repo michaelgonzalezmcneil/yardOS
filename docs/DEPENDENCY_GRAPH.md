@@ -7,7 +7,7 @@ YardOS
 ├── runtime
 │   ├── PhotogrammetryProvider ──> NodeODM / ODM
 │   │   └── MappingArtifact ──> geospatial tiling ──> PostGIS
-│   ├── DetectorProvider ──> MMDetection / RTMDet
+│   ├── DetectorProvider ──> YOLO (primary) / optional detector adapters
 │   │   └── Detection[] ──┬─> SegmentationProvider
 │   │                     └─> TrackingProvider ──> Geo-trax
 │   └── ChangeDetectionProvider ──> Open-CD
@@ -20,7 +20,7 @@ YardOS
     └── DroneProvider ──> MAVSDK ──> PX4
 ```
 
-The runtime does **not** import training datasets. Segmentation and tracking consume YardOS canonical artifacts/detections rather than MMDetection or Open-CD-native objects. Raster Vision and TorchGeo are optional implementation choices, not core domain dependencies.
+The runtime does **not** import training datasets. Segmentation and tracking consume YardOS canonical artifacts/detections rather than detector-native or Open-CD-native objects. Raster Vision and TorchGeo are optional implementation choices, not core domain dependencies.
 
 ## Allowed dependency direction
 

@@ -4,13 +4,18 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 GeoJSON = dict[str, Any]
 
 
 def new_id() -> str:
     return str(uuid4())
+
+
+def stable_id(kind: str, *parts: object) -> str:
+    """Deterministic ID for idempotent provider and pipeline output."""
+    return str(uuid5(NAMESPACE_URL, "yardos:" + kind + ":" + ":".join(str(part) for part in parts)))
 
 
 def utc_now() -> datetime:
@@ -31,10 +36,15 @@ class ArtifactType(StrEnum):
 
 
 class ProcessingState(StrEnum):
-    QUEUED = "queued"
+    PENDING = "pending"
+    # Backwards-compatible name for API callers created before the canonical
+    # job vocabulary was finalized.
+    QUEUED = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    RETRYING = "retrying"
+    CANCELLED = "cancelled"
 
 
 @dataclass(slots=True)
@@ -91,6 +101,21 @@ class MappingArtifact:
     height: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(frozen=True, slots=True)
+class Tile:
+    capture_id: str
+    artifact_id: str
+    x_offset: int
+    y_offset: int
+    width: int
+    height: int
+    overlap: int
+    parent_width: int
+    parent_height: int
+    transform: tuple[float, float, float, float, float, float] | None
+    crs: str | None
 
 
 @dataclass(slots=True)
@@ -183,7 +208,10 @@ class DroneTelemetry:
     longitude: float
     altitude_m: float
     heading_deg: float | None = None
+    ground_speed_mps: float | None = None
     battery_percent: float | None = None
+    gps_fix: str | None = None
+    flight_mode: str | None = None
     timestamp: datetime = field(default_factory=utc_now)
 
 
@@ -213,13 +241,31 @@ class ProcessingArtifact:
 
 
 @dataclass(slots=True)
+class ModelRun:
+    model_name: str
+    model_version: str
+    weights_uri: str | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+    id: str = field(default_factory=new_id)
+    started_at: datetime = field(default_factory=utc_now)
+    completed_at: datetime | None = None
+
+
+@dataclass(slots=True)
 class ProcessingJob:
     capture_id: str
     id: str = field(default_factory=new_id)
-    state: ProcessingState = ProcessingState.QUEUED
+    job_type: str = "capture_pipeline"
+    state: ProcessingState = ProcessingState.PENDING
     current_step: str = "CaptureUploaded"
+    attempts: int = 0
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     error: str | None = None
-    artifacts: list[ProcessingArtifact] = field(default_factory=list)
+    input_artifact_ids: list[str] = field(default_factory=list)
+    output_artifact_ids: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    artifacts: list[ProcessingArtifact] = field(default_factory=list)  # API compatibility
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
 

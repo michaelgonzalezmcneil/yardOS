@@ -14,7 +14,9 @@ services:
       retries: 20
 
   api:
-    build: ./apps/api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://yardos:yardos@db:5432/yardos}
       DEMO_MODE: ${DEMO_MODE:-true}
@@ -22,6 +24,9 @@ services:
       NODEODM_HOST: nodeodm
       NODEODM_PORT: 3000
       VISION_SERVICE_URL: http://vision:8000
+      PHOTOGRAMMETRY_PROVIDER: ${PHOTOGRAMMETRY_PROVIDER:-mock}
+      DETECTOR_PROVIDER: ${DETECTOR_PROVIDER:-mock}
+      SEGMENTATION_PROVIDER: ${SEGMENTATION_PROVIDER:-mock}
     ports: ["8000:8000"]
     depends_on:
       db: { condition: service_healthy }

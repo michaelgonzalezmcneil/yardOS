@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Sequence
 
 from packages.contracts import ArtifactType, Capture, MappingArtifact, Orthomosaic
@@ -33,8 +34,9 @@ class MockPhotogrammetryProvider:
 class ODMPhotogrammetryProvider:
     """Adapter for a NodeODM client. The worker never sees NodeODM response shapes."""
 
-    def __init__(self, client: Any):
+    def __init__(self, client: Any, output_dir: str | Path = "data/integration-results/nodeodm"):
         self.client = client
+        self.output_dir = Path(output_dir)
 
     def process_capture(self, capture: Capture, image_uris: Sequence[str]) -> str:
         return str(self.client.create_task(list(image_uris)))
@@ -49,7 +51,7 @@ class ODMPhotogrammetryProvider:
         status = self.get_status(provider_job_id)
         if status["state"] != "completed":
             raise RuntimeError(f"ODM task {provider_job_id} is {status['state']}: {status.get('error') or ''}".strip())
-        raw = self.client.download_artifacts(provider_job_id)
+        raw = self.client.download_artifacts(provider_job_id, self.output_dir)
         artifacts: list[MappingArtifact] = []
         mapping = {
             "orthomosaic": (ArtifactType.ORTHOMOSAIC, "image/tiff"),
@@ -59,5 +61,12 @@ class ODMPhotogrammetryProvider:
         for name, uri in raw.items():
             if name in mapping and uri:
                 kind, mime = mapping[name]
-                artifacts.append(MappingArtifact(capture_id=capture.id, type=kind, uri=str(uri), mime_type=mime, metadata={"provider": "nodeodm", "provider_job_id": provider_job_id}))
+                if kind == ArtifactType.ORTHOMOSAIC:
+                    from services.geospatial import read_geotiff
+
+                    artifact = read_geotiff(uri, capture.id)
+                    artifact.metadata.update({"provider": "nodeodm", "provider_job_id": provider_job_id})
+                    artifacts.append(artifact)
+                else:
+                    artifacts.append(MappingArtifact(capture_id=capture.id, type=kind, uri=str(uri), mime_type=mime, metadata={"provider": "nodeodm", "provider_job_id": provider_job_id}))
         return artifacts

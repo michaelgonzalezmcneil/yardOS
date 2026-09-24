@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import JSON, CheckConstraint, DateTime, Float, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,6 +55,51 @@ class Capture(Base):
     processing_error: Mapped[str | None] = mapped_column(Text)
 
 
+class ProcessingJob(Base):
+    __tablename__ = "processing_jobs"
+    __table_args__ = (Index("ix_processing_jobs_capture_created", "capture_id", "created_at"),)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    capture_id: Mapped[str] = mapped_column(ForeignKey("captures.id", ondelete="CASCADE"), index=True)
+    job_type: Mapped[str] = mapped_column(String(80), default="capture_pipeline")
+    state: Mapped[str] = mapped_column(String(30), default="pending", index=True)
+    current_step: Mapped[str] = mapped_column(String(80), default="CaptureUploaded")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)
+    input_artifact_ids: Mapped[list | None] = mapped_column(JsonType)
+    output_artifact_ids: Mapped[list | None] = mapped_column(JsonType)
+    metadata_json: Mapped[dict | None] = mapped_column(JsonType)
+    metadata_json: Mapped[dict | None] = mapped_column(JsonType)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class MappingArtifact(Base):
+    __tablename__ = "mapping_artifacts"
+    __table_args__ = (Index("ix_mapping_artifacts_capture_type", "capture_id", "type"),)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    capture_id: Mapped[str] = mapped_column(ForeignKey("captures.id", ondelete="CASCADE"), index=True)
+    type: Mapped[str] = mapped_column(String(40), index=True)
+    uri: Mapped[str] = mapped_column(Text)
+    mime_type: Mapped[str] = mapped_column(String(120))
+    crs: Mapped[str | None] = mapped_column(String(120))
+    bounds: Mapped[dict | None] = mapped_column(JsonType)
+    transform: Mapped[list | None] = mapped_column(JsonType)
+    width: Mapped[int | None]
+    height: Mapped[int | None]
+    metadata_json: Mapped[dict | None] = mapped_column(JsonType)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class ProcessingArtifact(Base):
+    __tablename__ = "processing_artifacts"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    job_id: Mapped[str] = mapped_column(ForeignKey("processing_jobs.id", ondelete="CASCADE"), index=True)
+    artifact_id: Mapped[str] = mapped_column(ForeignKey("mapping_artifacts.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(60))
+
+
 class Image(Base):
     __tablename__ = "images"
     id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
@@ -85,7 +130,25 @@ class Detection(Base):
     footprint: Mapped[str | None] = mapped_column(Text().with_variant(Geometry("POLYGON", srid=4326), "postgresql"))
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     source_image_id: Mapped[str | None] = mapped_column(ForeignKey("images.id", ondelete="SET NULL"), index=True)
+    source_artifact_id: Mapped[str | None] = mapped_column(ForeignKey("mapping_artifacts.id", ondelete="SET NULL"), index=True)
+    source_width: Mapped[int | None]
+    source_height: Mapped[int | None]
+    model_name: Mapped[str | None] = mapped_column(String(120))
     model_version: Mapped[str] = mapped_column(String(120), default="demo-fixture-v1")
+
+
+class Segmentation(Base):
+    __tablename__ = "segmentations"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    capture_id: Mapped[str] = mapped_column(ForeignKey("captures.id", ondelete="CASCADE"), index=True)
+    class_name: Mapped[str] = mapped_column(String(80), index=True)
+    confidence: Mapped[float] = mapped_column(Float)
+    geometry: Mapped[str | None] = mapped_column(GeoShape)
+    mask_uri: Mapped[str | None] = mapped_column(Text)
+    source_artifact_id: Mapped[str] = mapped_column(ForeignKey("mapping_artifacts.id", ondelete="CASCADE"), index=True)
+    model_name: Mapped[str] = mapped_column(String(120))
+    model_version: Mapped[str] = mapped_column(String(120))
+    metadata_json: Mapped[dict | None] = mapped_column(JsonType)
 
 
 class Track(Base):

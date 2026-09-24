@@ -110,6 +110,68 @@ docker compose config
 
 The automated tests use mocked service transports and do not require Docker, model weights, or a real photogrammetry run.
 
+## Brighton Beach real-data integration
+
+The opt-in integration fixture is [`pierotofy/drone_dataset_brighton_beach`](https://github.com/pierotofy/drone_dataset_brighton_beach). Its repository currently contains 18 original JPGs under `images/` (`DJI_0018.JPG` through `DJI_0035.JPG`) plus reference outputs. The ODMdata catalog describes the set as 18 EXIF-geotagged images without GCP or RTK. The repository declares BSD-2-Clause, but its license does not separately enumerate the photographs; YardOS therefore downloads it locally, never commits or redistributes it, and does not claim broader commercial imagery rights.
+
+Fetch and validate the source set:
+
+```bash
+python scripts/brighton_beach_integration.py fetch
+python scripts/brighton_beach_integration.py validate
+```
+
+Validation opens every image, requires at least three distinct GPS positions, reports actual versus expected image count and dimensions, and requires GPS EXIF on every input. Successful reconstruction is the definitive overlap check; the validator does not invent or claim an overlap percentage.
+
+Install the API dependencies, start the real services, and run the complete integration:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r apps/api/requirements.txt -r services/vision/requirements.txt
+
+cp .env.example .env
+# Set VISION_PROVIDER=yolo. A mock vision response is rejected by this command.
+docker compose --profile photogrammetry --profile vision up -d nodeodm vision db
+
+set -a; source .env; set +a
+DATABASE_URL=sqlite:///./data/integration-results/brighton.db \
+  python scripts/brighton_beach_integration.py run
+```
+
+The run is retry-safe at the worker boundary: once NodeODM returns a task UUID it is persisted on the processing job and reused. It downloads the task archive, reads the real orthophoto GeoTIFF CRS and six-value GDAL affine transform, rejects absent/identity georeferencing, transforms detection centers to EPSG:4326 with `pyproj`, and persists the capture artifacts and detections. Zero relevant vehicles is a valid successful result. Output and the JSON integration report remain under ignored `data/integration-results/`.
+
+Serve the resulting capture in the map:
+
+```bash
+export DATABASE_URL=sqlite:///./data/integration-results/brighton.db
+uvicorn apps.api.app.main:app --port 8000
+export NEXT_PUBLIC_API_URL=http://localhost:8000
+export NEXT_PUBLIC_CAPTURE_ID=<capture_id-from-report>
+npm --prefix apps/web run dev
+```
+
+The map now loads `/captures/<capture-id>/detections.geojson`; it no longer renders `apps/web/lib/demo.ts`. Inspect the persisted geospatial artifact with `GET /captures/<capture-id>/artifacts` and the job/task state with `GET /processing/jobs/<job-id>`.
+
+## Mock API processing pipeline
+
+The API can exercise the YardOS-owned processing DAG without Docker, imagery, or model weights. Mock providers still produce canonical artifacts and georeferenced detections, and the SQLAlchemy repository persists the results.
+
+```bash
+curl -X POST http://127.0.0.1:8000/captures/<capture-id>/process \
+  -H 'content-type: application/json' \
+  -d '{"image_urls":["mock://DJI_0001.JPG"]}'
+```
+
+The response is `202 Accepted` and includes a `job_id`. Inspect it with:
+
+```bash
+curl http://127.0.0.1:8000/processing/jobs/<job-id>
+curl http://127.0.0.1:8000/captures/<capture-id>/detections
+```
+
+When `DEMO_MODE=true`, omitting `image_urls` uses a synthetic mock image URI. No fake pixels are analyzed: the deterministic provider exists to verify orchestration, persistence, API behavior, and the frontend contract. Set `DEMO_MODE=false` to require stored or explicitly supplied images.
+
 ## Aerial vision service
 
 The service lives in `services/vision`. It provides:

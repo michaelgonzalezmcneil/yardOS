@@ -12,6 +12,8 @@ services/vision/training/datasets/*
 !services/vision/training/datasets/yardos/labels/
 !services/vision/training/datasets/yardos/labels/.gitkeep
 data/vision/
+data/integration/
+data/integration-results/
 runs/
 __pycache__/
 *.py[cod]
@@ -19,3 +21,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 .DS_Store
+node_modules/
+.next/
+node_modules/
+.next/

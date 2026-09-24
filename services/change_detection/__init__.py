@@ -1,3 +1,3 @@
-from .service import ChangeDetectionService, ObjectDifferenceBaseline
+from .service import ChangeDetectionService, ObjectDifferenceBaseline, OpenCDProvider, SimpleDifferenceProvider
 
-__all__ = ["ChangeDetectionService", "ObjectDifferenceBaseline"]
+__all__ = ["ChangeDetectionService", "ObjectDifferenceBaseline", "OpenCDProvider", "SimpleDifferenceProvider"]

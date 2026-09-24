@@ -2,6 +2,14 @@
 
 This repository connects two isolated services: [NodeODM](https://github.com/OpenDroneMap/NodeODM) creates geospatial outputs from drone imagery, then a FastAPI/Ultralytics service detects aerial objects in the resulting orthophoto. The detection code is original YardOS integration code; no third-party repository is vendored.
 
+## Documentation map
+
+- Start here: [`docs/README.md`](./docs/README.md)
+- Canonical architecture: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+- System boundary and processing stages: [`docs/SYSTEM_ARCHITECTURE.md`](./docs/SYSTEM_ARCHITECTURE.md)
+- Provider interfaces and adapter boundaries: [`docs/PROVIDERS.md`](./docs/PROVIDERS.md)
+- Dependency direction: [`docs/DEPENDENCY_GRAPH.md`](./docs/DEPENDENCY_GRAPH.md)
+
 ## Prerequisites
 
 - Docker Desktop (allocate at least 4 GB RAM; 8+ GB is better for real datasets)

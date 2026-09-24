@@ -14,11 +14,14 @@ from .tiling import detect_tiled
 
 def build_provider():
     provider_name = os.getenv("VISION_PROVIDER", "mock").lower()
-    version = os.getenv("VISION_MODEL_VERSION", "yolo11n-visdrone-bootstrap")
     if provider_name == "mock":
         return MockDetectionProvider(os.getenv("VISION_MODEL_VERSION", "yardos-mock-v1"))
     if provider_name == "yolo":
-        return YOLODetectionProvider(os.getenv("VISION_MODEL_PATH", "yolo11n.pt"), version, float(os.getenv("VISION_CONFIDENCE", "0.25")))
+        return YOLODetectionProvider(
+            os.getenv("VISION_MODEL_PATH", "yolo11n.pt"),
+            os.getenv("VISION_MODEL_VERSION", "yolo11n-visdrone-bootstrap"),
+            float(os.getenv("VISION_CONFIDENCE", "0.25")),
+        )
     raise RuntimeError(f"Unsupported VISION_PROVIDER: {provider_name}")
 
 

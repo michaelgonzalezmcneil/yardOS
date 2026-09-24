@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
@@ -8,6 +8,10 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".tif", ".tiff"]);
+
+function isSupportedImagePath(path) {
+  return IMAGE_EXTENSIONS.has(extname(path).toLowerCase());
+}
 
 export const TASK_STATUS = Object.freeze({
   QUEUED: 10,
@@ -39,13 +43,13 @@ export async function imagePathsFrom(input) {
   const paths = [];
   for (const value of values) {
     const absolute = resolve(value);
-    const stats = await import("node:fs/promises").then(({ stat }) => stat(absolute));
+    const stats = await stat(absolute);
     if (stats.isDirectory()) {
       const entries = await readdir(absolute, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isFile() && IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) paths.push(join(absolute, entry.name));
+        if (entry.isFile() && isSupportedImagePath(entry.name)) paths.push(join(absolute, entry.name));
       }
-    } else if (IMAGE_EXTENSIONS.has(extname(absolute).toLowerCase())) {
+    } else if (isSupportedImagePath(absolute)) {
       paths.push(absolute);
     }
   }
@@ -125,8 +129,8 @@ export class NodeOdmClient {
     await mkdir(destinationDirectory, { recursive: true });
     const outputPath = join(destinationDirectory, "orthophoto.tif");
     try {
-      await execFileAsync("unzip", ["-p", archivePath, "odm_orthophoto/odm_orthophoto.tif"], { encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 })
-        .then(({ stdout }) => import("node:fs/promises").then(({ writeFile }) => writeFile(outputPath, stdout)));
+      const { stdout } = await execFileAsync("unzip", ["-p", archivePath, "odm_orthophoto/odm_orthophoto.tif"], { encoding: "buffer", maxBuffer: 1024 * 1024 * 1024 });
+      await writeFile(outputPath, stdout);
     } catch (error) {
       throw new NodeOdmError(`Could not extract odm_orthophoto/odm_orthophoto.tif from ${archivePath}.`, error);
     }
